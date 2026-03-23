@@ -35,11 +35,11 @@ export default async function HomePage() {
           />
         </section>
 
-        <footer className="border-t border-[var(--color-border)] pt-8 pb-2 text-center">
-          <p className="font-sans text-sm font-semibold uppercase tracking-[0.16em] text-[var(--color-text)]">
+        <footer className="border-t border-ui-border pt-8 pb-2 text-center">
+          <p className="font-sans text-sm font-semibold uppercase tracking-[0.16em] text-ui-text">
             {portfolioOwnerProfile.ownerName}
           </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-ui-text-muted">
             Todos os direitos reservados.
           </p>
         </footer>

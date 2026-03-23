@@ -11,13 +11,13 @@ export function ProjectsShowcaseSection({
   return (
     <section id="projetos" className="space-y-8">
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-text-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ui-text-muted">
           Trabalhos em destaque
         </p>
-        <h2 className="text-3xl font-semibold text-[var(--color-text)] md:text-4xl">
+        <h2 className="text-3xl font-semibold text-ui-text md:text-4xl">
           Projetos selecionados
         </h2>
-        <p className="max-w-2xl text-base leading-relaxed text-[var(--color-text-muted)] md:text-lg">
+        <p className="max-w-2xl text-base leading-relaxed text-ui-text-muted md:text-lg">
           Cada projeto foi pensado para equilibrar estrategia, estetica e impacto no
           resultado do cliente.
         </p>

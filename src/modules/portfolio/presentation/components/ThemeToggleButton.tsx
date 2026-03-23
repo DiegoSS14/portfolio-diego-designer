@@ -36,7 +36,7 @@ export function ThemeToggleButton() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+      className="inline-flex items-center gap-2 rounded-full border border-ui-border bg-ui-surface/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-ui-text-muted transition hover:text-ui-text"
       aria-label="Alternar tema escuro e claro"
     >
       {currentTheme === "dark" ? (
