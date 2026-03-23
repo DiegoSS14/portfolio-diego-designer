@@ -7,6 +7,7 @@ import {
   IconArrowLeft,
   IconDeviceFloppy,
   IconEdit,
+  IconHome,
   IconLogout,
   IconPhotoPlus,
   IconPlus,
@@ -442,6 +443,10 @@ export function AdminProjectsManager() {
     router.refresh();
   }
 
+  function handleGoHome() {
+    router.push("/");
+  }
+
   return (
     <section className="mx-auto w-full max-w-7xl px-6 py-16 md:px-12 md:py-20">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -453,6 +458,14 @@ export function AdminProjectsManager() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleGoHome}
+            className="inline-flex items-center gap-2 rounded-2xl border border-ui-border bg-ui-surface px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-ui-text"
+          >
+            <IconHome size={14} />
+            Voltar para o inicio
+          </button>
           <button
             type="button"
             onClick={openCreateForm}
