@@ -11,11 +11,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
   return (
     <article className="group overflow-hidden rounded-3xl border border-ui-border bg-ui-surface/50 transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
       <Link href={`/projetos/${project.slug}`}>
-        <div className="relative aspect-4/3 w-full overflow-hidden">
+        <div className="relative aspect-video w-full overflow-hidden bg-ui-surface">
           <Image
             src={project.thumbnailUrl}
             alt={`Miniatura do projeto ${project.title}`}
             fill
+            quality={100}
+            priority
             className="object-cover transition duration-500 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, 50vw"
           />

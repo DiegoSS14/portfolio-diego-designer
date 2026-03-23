@@ -86,11 +86,12 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
       >
         {project.mediaUrls.map((mediaUrl, index) => (
           <figure key={mediaUrl} className="overflow-hidden rounded-2xl border border-ui-border">
-            <div className="relative aspect-4/3">
+            <div className="relative aspect-video bg-ui-surface">
               <Image
                 src={mediaUrl}
                 alt={`Imagem ${index + 1} do projeto ${project.title}`}
                 fill
+                quality={100}
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
