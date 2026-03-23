@@ -1,7 +1,10 @@
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
 import { isFirebaseServiceError } from "@/modules/portfolio/infrastructure/adapters/firebase/isFirebaseServiceError";
+import { InMemoryProjectRepository } from "@/modules/portfolio/infrastructure/adapters/in-memory/InMemoryProjectRepository";
 import { createProjectRepository } from "@/modules/portfolio/infrastructure/factories/createProjectRepository";
+import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure/factories/createAdminProjectRepository";
 import { portfolioOwnerProfile } from "@/modules/portfolio/infrastructure/data/portfolioOwnerProfile";
+import { seedProjects } from "@/modules/portfolio/infrastructure/data/seedProjects";
 import { ContactSection } from "@/modules/portfolio/presentation/components/ContactSection";
 import { PortfolioMaintenanceSection } from "@/modules/portfolio/presentation/components/PortfolioMaintenanceSection";
 import { PortfolioHeaderSection } from "@/modules/portfolio/presentation/components/PortfolioHeaderSection";
@@ -29,9 +32,26 @@ async function loadHomePageData(): Promise<HomePageDataState> {
       throw error;
     }
 
+    try {
+      const adminRepository = createAdminProjectRepository();
+      const adminUseCase = new GetPortfolioProjectsUseCase(adminRepository);
+      const adminProjects = await adminUseCase.execute();
+
+      return {
+        projectCards: adminProjects.map(mapProjectToCardViewModel),
+        isMaintenanceMode: false,
+      };
+    } catch {
+      // If both public and server reads fail, keep public portfolio online with local seed data.
+    }
+
+    const fallbackRepository = new InMemoryProjectRepository(seedProjects);
+    const fallbackUseCase = new GetPortfolioProjectsUseCase(fallbackRepository);
+    const fallbackProjects = await fallbackUseCase.execute();
+
     return {
-      projectCards: [],
-      isMaintenanceMode: true,
+      projectCards: fallbackProjects.map(mapProjectToCardViewModel),
+      isMaintenanceMode: false,
     };
   }
 }

@@ -1,5 +1,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,4 +23,20 @@ export function getFirestoreDatabase() {
 
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   return getFirestore(firebaseApp);
+}
+
+function getFirebaseAppInstance() {
+  if (hasMissingFirebaseConfiguration()) {
+    throw new Error("Firebase nao configurado. Defina as variaveis NEXT_PUBLIC_FIREBASE_*");
+  }
+
+  return getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+}
+
+export function getFirebaseAuthClient() {
+  return getAuth(getFirebaseAppInstance());
+}
+
+export function getFirebaseStorageClient() {
+  return getStorage(getFirebaseAppInstance());
 }
