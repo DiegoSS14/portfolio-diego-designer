@@ -1,15 +1,21 @@
 import {
+  addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   orderBy,
   query,
+  setDoc,
   where,
 } from "firebase/firestore";
 
 import type { Project } from "../../../domain/entities/Project";
-import type { ProjectRepository } from "../../../domain/repositories/ProjectRepository";
+import type {
+  ProjectRepository,
+  ProjectUpsertPayload,
+} from "../../../domain/repositories/ProjectRepository";
 import { getFirestoreDatabase } from "./firebaseClient";
 
 const COLLECTION_NAME = "projects";
@@ -68,5 +74,47 @@ export class FirebaseProjectRepository implements ProjectRepository {
       id: detailSnapshot.id,
       ...detailSnapshot.data(),
     });
+  }
+
+  async create(payload: ProjectUpsertPayload): Promise<Project> {
+    const firestoreDatabase = getFirestoreDatabase();
+    const projectsCollection = collection(firestoreDatabase, COLLECTION_NAME);
+    const createdDocument = await addDoc(projectsCollection, payload);
+
+    return {
+      id: createdDocument.id,
+      ...payload,
+    };
+  }
+
+  async update(projectId: string, payload: ProjectUpsertPayload): Promise<Project | null> {
+    const firestoreDatabase = getFirestoreDatabase();
+    const projectReference = doc(firestoreDatabase, COLLECTION_NAME, projectId);
+    const existingProjectSnapshot = await getDoc(projectReference);
+
+    if (!existingProjectSnapshot.exists()) {
+      return null;
+    }
+
+    await setDoc(projectReference, payload, { merge: true });
+
+    return {
+      id: projectId,
+      ...payload,
+    };
+  }
+
+  async delete(projectId: string): Promise<boolean> {
+    const firestoreDatabase = getFirestoreDatabase();
+    const projectReference = doc(firestoreDatabase, COLLECTION_NAME, projectId);
+    const existingProjectSnapshot = await getDoc(projectReference);
+
+    if (!existingProjectSnapshot.exists()) {
+      return false;
+    }
+
+    await deleteDoc(projectReference);
+
+    return true;
   }
 }
