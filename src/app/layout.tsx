@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import { AuthAccessButton } from "@/modules/auth/presentation/components/AuthAccessButton";
 import { ThemeToggleButton } from "@/modules/portfolio/presentation/components/ThemeToggleButton";
 import { ThemeProvider } from "@/shared/theme/ThemeProvider";
 
@@ -33,7 +34,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <div className="fixed top-5 right-5 z-50 md:top-8 md:right-8">
+          <div className="fixed top-5 right-5 z-50 flex items-center gap-3 md:top-8 md:right-8">
+            <AuthAccessButton />
             <ThemeToggleButton />
           </div>
           {children}
