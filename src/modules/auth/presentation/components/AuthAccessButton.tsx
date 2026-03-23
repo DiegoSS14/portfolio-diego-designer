@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { IconLayoutDashboard, IconPencilCog } from "@tabler/icons-react";
+import { IconEdit, IconLayoutDashboard } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -54,7 +54,7 @@ export function AuthAccessButton() {
       aria-label={isAuthenticated ? "Abrir painel administrativo" : "Ir para o login"}
       title={isAuthenticated ? "Painel" : "Login"}
     >
-      {isAuthenticated ? <IconLayoutDashboard size={16} stroke={1.8} /> : <IconPencilCog size={16} stroke={1.8} />}
+      {isAuthenticated ? <IconLayoutDashboard size={16} stroke={1.8} /> : <IconEdit size={16} stroke={1.8} />}
     </Link>
   );
 }

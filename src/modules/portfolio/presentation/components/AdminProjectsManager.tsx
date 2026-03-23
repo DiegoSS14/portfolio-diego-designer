@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   IconDeviceFloppy,
@@ -13,13 +14,14 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 import type { Project } from "@/modules/portfolio/domain/entities/Project";
 import {
   getFirebaseAuthClient,
   getFirebaseStorageClient,
 } from "@/modules/portfolio/infrastructure/adapters/firebase/firebaseClient";
+import { SelectedUploadFilesList } from "./SelectedUploadFilesList";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -29,6 +31,10 @@ interface ProjectMutationResponse {
   project: Project;
 }
 
+interface ApiErrorResponse {
+  error?: string;
+}
+
 interface ProjectFormState {
   id: string | null;
   slug: string;
@@ -36,8 +42,8 @@ interface ProjectFormState {
   shortDescription: string;
   fullDescription: string;
   tags: string;
-  thumbnailUrl: string;
-  mediaUrls: string;
+  existingThumbnailUrl: string;
+  existingMediaUrls: string[];
   thumbnailFile: File | null;
   galleryFiles: File[];
 }
@@ -49,8 +55,8 @@ const emptyFormState: ProjectFormState = {
   shortDescription: "",
   fullDescription: "",
   tags: "",
-  thumbnailUrl: "",
-  mediaUrls: "",
+  existingThumbnailUrl: "",
+  existingMediaUrls: [],
   thumbnailFile: null,
   galleryFiles: [],
 };
@@ -95,6 +101,19 @@ export function AdminProjectsManager() {
   const [formState, setFormState] = useState<ProjectFormState>(emptyFormState);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const readApiError = useCallback(async (response: Response): Promise<string> => {
+    try {
+      const payload = (await response.json()) as ApiErrorResponse;
+      if (payload.error) {
+        return payload.error;
+      }
+    } catch {
+      // Ignore parse errors and fallback to generic message.
+    }
+
+    return `Request failed with status ${response.status}.`;
+  }, []);
+
   const loadProjects = useCallback(async () => {
     const response = await fetch("/api/admin/projects", { cache: "no-store" });
 
@@ -130,19 +149,38 @@ export function AdminProjectsManager() {
       shortDescription: project.shortDescription,
       fullDescription: project.fullDescription,
       tags: project.tags.join(", "),
-      thumbnailUrl: project.thumbnailUrl,
-      mediaUrls: project.mediaUrls.join("\n"),
+      existingThumbnailUrl: project.thumbnailUrl,
+      existingMediaUrls: project.mediaUrls,
       thumbnailFile: null,
       galleryFiles: [],
     });
     setIsFormVisible(true);
   }
 
-  async function uploadFile(file: File, path: string): Promise<string> {
-    const currentUser = authClient.currentUser;
+  async function waitForFirebaseUser(): Promise<boolean> {
+    if (authClient.currentUser) {
+      return true;
+    }
 
-    if (!currentUser) {
-      throw new Error("Not authenticated");
+    return new Promise<boolean>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        unsubscribe();
+        resolve(false);
+      }, 3000);
+
+      const unsubscribe = onAuthStateChanged(authClient, (user) => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+        resolve(Boolean(user));
+      });
+    });
+  }
+
+  async function uploadFile(file: File, path: string): Promise<string> {
+    const isAuthenticated = await waitForFirebaseUser();
+
+    if (!isAuthenticated) {
+      throw new Error("Sua autenticacao Firebase ainda nao foi restaurada. Aguarde alguns segundos e tente novamente.");
     }
 
     const storageRef = ref(storageClient, path);
@@ -187,13 +225,6 @@ export function AdminProjectsManager() {
     };
   }
 
-  function parseMediaUrlsFromTextarea(): string[] {
-    return formState.mediaUrls
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
   async function saveProject(payload: {
     slug: string;
     title: string;
@@ -213,7 +244,7 @@ export function AdminProjectsManager() {
       });
 
       if (!updateResponse.ok) {
-        throw new Error("Invalid payload");
+        throw new Error(await readApiError(updateResponse));
       }
 
       return;
@@ -228,7 +259,7 @@ export function AdminProjectsManager() {
     });
 
     if (!createResponse.ok) {
-      throw new Error("Invalid payload");
+      throw new Error(await readApiError(createResponse));
     }
 
     const created = (await createResponse.json()) as ProjectMutationResponse;
@@ -257,7 +288,7 @@ export function AdminProjectsManager() {
     });
 
     if (!finalizeResponse.ok) {
-      throw new Error("Failed to finalize uploads");
+      throw new Error(await readApiError(finalizeResponse));
     }
   }
 
@@ -268,10 +299,13 @@ export function AdminProjectsManager() {
 
     try {
       const slug = formState.slug.trim() || slugify(formState.title);
-      const hasThumbnailInput = Boolean(formState.thumbnailUrl.trim()) || Boolean(formState.thumbnailFile);
+
+      const hasThumbnailInput = formState.id
+        ? Boolean(formState.existingThumbnailUrl) || Boolean(formState.thumbnailFile)
+        : Boolean(formState.thumbnailFile);
 
       if (!hasThumbnailInput) {
-        setErrorMessage("Defina uma thumbnail por URL ou upload de arquivo.");
+        setErrorMessage("Selecione uma thumbnail para o projeto.");
         setIsSaving(false);
         return;
       }
@@ -282,8 +316,8 @@ export function AdminProjectsManager() {
         shortDescription: formState.shortDescription,
         fullDescription: formState.fullDescription,
         tags: formState.tags,
-        thumbnailUrl: formState.thumbnailUrl.trim(),
-        mediaUrls: parseMediaUrlsFromTextarea(),
+        thumbnailUrl: formState.existingThumbnailUrl,
+        mediaUrls: formState.existingMediaUrls,
       };
 
       if (formState.id) {
@@ -307,8 +341,12 @@ export function AdminProjectsManager() {
       await loadProjects();
       setFormState(emptyFormState);
       setIsFormVisible(false);
-    } catch {
-      setErrorMessage("Nao foi possivel salvar o projeto. Verifique os campos e o upload.");
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Nao foi possivel salvar o projeto. Verifique os campos e o upload.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -431,14 +469,34 @@ export function AdminProjectsManager() {
               onChange={(event) => setFormState((prev) => ({ ...prev, tags: event.target.value }))}
               className="rounded-xl border border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text outline-none md:col-span-2"
             />
-            <input
-              placeholder="Thumbnail URL (opcional se enviar arquivo)"
-              value={formState.thumbnailUrl}
-              onChange={(event) =>
-                setFormState((prev) => ({ ...prev, thumbnailUrl: event.target.value }))
-              }
-              className="rounded-xl border border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text outline-none md:col-span-2"
-            />
+
+            {formState.existingThumbnailUrl ? (
+              <div className="rounded-xl border border-ui-border bg-ui-bg p-3 md:col-span-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
+                    Thumbnail atual
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, existingThumbnailUrl: "" }))}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
+                    aria-label="Remover thumbnail atual"
+                    title="Remover thumbnail atual"
+                  >
+                    <IconX size={14} />
+                  </button>
+                </div>
+                <Image
+                  src={formState.existingThumbnailUrl}
+                  alt="Thumbnail atual do projeto"
+                  width={960}
+                  height={540}
+                  unoptimized
+                  className="h-40 w-full rounded-lg object-cover"
+                />
+              </div>
+            ) : null}
+
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted md:col-span-2">
               <IconPhotoPlus size={16} />
               Upload thumbnail
@@ -454,13 +512,57 @@ export function AdminProjectsManager() {
                 }
               />
             </label>
-            <textarea
-              placeholder="URLs de imagens do projeto (uma por linha)"
-              rows={4}
-              value={formState.mediaUrls}
-              onChange={(event) => setFormState((prev) => ({ ...prev, mediaUrls: event.target.value }))}
-              className="rounded-xl border border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text outline-none md:col-span-2"
+            <SelectedUploadFilesList
+              files={formState.thumbnailFile ? [formState.thumbnailFile] : []}
+              onRemove={() =>
+                setFormState((prev) => ({
+                  ...prev,
+                  thumbnailFile: null,
+                }))
+              }
             />
+
+            {formState.existingMediaUrls.length > 0 ? (
+              <ul className="space-y-2 md:col-span-2">
+                {formState.existingMediaUrls.map((mediaUrl, index) => (
+                  <li
+                    key={`${mediaUrl}-${index}`}
+                    className="rounded-xl border border-ui-border bg-ui-bg p-3"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
+                        Imagem atual {index + 1}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            existingMediaUrls: prev.existingMediaUrls.filter(
+                              (_, mediaIndex) => mediaIndex !== index,
+                            ),
+                          }))
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
+                        aria-label={`Remover imagem atual ${index + 1}`}
+                        title="Remover imagem"
+                      >
+                        <IconX size={14} />
+                      </button>
+                    </div>
+                    <Image
+                      src={mediaUrl}
+                      alt={`Imagem atual ${index + 1} do projeto`}
+                      width={960}
+                      height={540}
+                      unoptimized
+                      className="h-36 w-full rounded-lg object-cover"
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted md:col-span-2">
               <IconUpload size={16} />
               Upload de imagens da galeria (multiplas de uma vez)
@@ -477,6 +579,15 @@ export function AdminProjectsManager() {
                 }
               />
             </label>
+            <SelectedUploadFilesList
+              files={formState.galleryFiles}
+              onRemove={(targetIndex) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  galleryFiles: prev.galleryFiles.filter((_, index) => index !== targetIndex),
+                }))
+              }
+            />
           </div>
 
           <div className="mt-6">
