@@ -1,17 +1,51 @@
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
+import { isFirebaseServiceError } from "@/modules/portfolio/infrastructure/adapters/firebase/isFirebaseServiceError";
 import { createProjectRepository } from "@/modules/portfolio/infrastructure/factories/createProjectRepository";
 import { portfolioOwnerProfile } from "@/modules/portfolio/infrastructure/data/portfolioOwnerProfile";
 import { ContactSection } from "@/modules/portfolio/presentation/components/ContactSection";
+import { PortfolioMaintenanceSection } from "@/modules/portfolio/presentation/components/PortfolioMaintenanceSection";
 import { PortfolioHeaderSection } from "@/modules/portfolio/presentation/components/PortfolioHeaderSection";
 import { ProjectsShowcaseSection } from "@/modules/portfolio/presentation/components/ProjectsShowcaseSection";
 import { mapProjectToCardViewModel } from "@/modules/portfolio/presentation/mappers/projectViewModelMapper";
 
-export default async function HomePage() {
+interface HomePageDataState {
+  projectCards: ReturnType<typeof mapProjectToCardViewModel>[];
+  isMaintenanceMode: boolean;
+}
+
+async function loadHomePageData(): Promise<HomePageDataState> {
   const projectRepository = createProjectRepository();
   const getPortfolioProjectsUseCase = new GetPortfolioProjectsUseCase(projectRepository);
 
-  const projects = await getPortfolioProjectsUseCase.execute();
-  const projectCards = projects.map(mapProjectToCardViewModel);
+  try {
+    const projects = await getPortfolioProjectsUseCase.execute();
+
+    return {
+      projectCards: projects.map(mapProjectToCardViewModel),
+      isMaintenanceMode: false,
+    };
+  } catch (error) {
+    if (!isFirebaseServiceError(error)) {
+      throw error;
+    }
+
+    return {
+      projectCards: [],
+      isMaintenanceMode: true,
+    };
+  }
+}
+
+export default async function HomePage() {
+  const { projectCards, isMaintenanceMode } = await loadHomePageData();
+
+  if (isMaintenanceMode) {
+    return (
+      <main className="relative flex-1">
+        <PortfolioMaintenanceSection />
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex-1">
