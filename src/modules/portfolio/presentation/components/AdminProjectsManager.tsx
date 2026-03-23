@@ -25,6 +25,10 @@ interface ProjectsResponse {
   projects: Project[];
 }
 
+interface ProjectMutationResponse {
+  project: Project;
+}
+
 interface ProjectFormState {
   id: string | null;
   slug: string;
@@ -59,6 +63,25 @@ function slugify(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function formatDateFolder(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .toLowerCase();
 }
 
 export function AdminProjectsManager() {
@@ -128,33 +151,114 @@ export function AdminProjectsManager() {
     return getDownloadURL(storageRef);
   }
 
-  async function buildMediaUrls(projectSlug: string): Promise<{ thumbnailUrl: string; mediaUrls: string[] }> {
-    const fromTextarea = formState.mediaUrls
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
+  async function buildMediaUrls(
+    projectScope: string,
+    baseThumbnailUrl: string,
+    baseMediaUrls: string[],
+  ): Promise<{ thumbnailUrl: string; mediaUrls: string[] }> {
+    const dateFolder = formatDateFolder();
 
     const uploadedGalleryUrls = await Promise.all(
-      formState.galleryFiles.map((file) => {
-        const safeName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-        return uploadFile(file, `projects/${projectSlug}/gallery/${safeName}`);
+      formState.galleryFiles.map((file, index) => {
+        const safeName = sanitizeFileName(file.name);
+        const uniqueId = crypto.randomUUID();
+
+        return uploadFile(
+          file,
+          `projects/${projectScope}/gallery/${dateFolder}/img-${String(index + 1).padStart(2, "0")}-${uniqueId}-${safeName}`,
+        );
       }),
     );
 
-    let thumbnailUrl = formState.thumbnailUrl.trim();
+    let thumbnailUrl = baseThumbnailUrl;
 
     if (formState.thumbnailFile) {
-      const safeThumbnailName = `${Date.now()}-${formState.thumbnailFile.name.replace(/\s+/g, "-")}`;
+      const safeThumbnailName = sanitizeFileName(formState.thumbnailFile.name);
+      const uniqueId = crypto.randomUUID();
       thumbnailUrl = await uploadFile(
         formState.thumbnailFile,
-        `projects/${projectSlug}/thumbnail/${safeThumbnailName}`,
+        `projects/${projectScope}/thumbnails/${dateFolder}/thumb-${uniqueId}-${safeThumbnailName}`,
       );
     }
 
     return {
       thumbnailUrl,
-      mediaUrls: [...fromTextarea, ...uploadedGalleryUrls],
+      mediaUrls: [...baseMediaUrls, ...uploadedGalleryUrls],
     };
+  }
+
+  function parseMediaUrlsFromTextarea(): string[] {
+    return formState.mediaUrls
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  async function saveProject(payload: {
+    slug: string;
+    title: string;
+    shortDescription: string;
+    fullDescription: string;
+    tags: string;
+    thumbnailUrl: string;
+    mediaUrls: string[];
+  }) {
+    if (formState.id) {
+      const updateResponse = await fetch(`/api/admin/projects/${formState.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Invalid payload");
+      }
+
+      return;
+    }
+
+    const createResponse = await fetch("/api/admin/projects", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!createResponse.ok) {
+      throw new Error("Invalid payload");
+    }
+
+    const created = (await createResponse.json()) as ProjectMutationResponse;
+
+    const hasUploads = Boolean(formState.thumbnailFile) || formState.galleryFiles.length > 0;
+
+    if (!hasUploads) {
+      return;
+    }
+
+    const withUploads = await buildMediaUrls(
+      created.project.id,
+      payload.thumbnailUrl,
+      payload.mediaUrls,
+    );
+
+    const finalizeResponse = await fetch(`/api/admin/projects/${created.project.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...payload,
+        ...withUploads,
+      }),
+    });
+
+    if (!finalizeResponse.ok) {
+      throw new Error("Failed to finalize uploads");
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -164,31 +268,40 @@ export function AdminProjectsManager() {
 
     try {
       const slug = formState.slug.trim() || slugify(formState.title);
-      const { thumbnailUrl, mediaUrls } = await buildMediaUrls(slug);
+      const hasThumbnailInput = Boolean(formState.thumbnailUrl.trim()) || Boolean(formState.thumbnailFile);
 
-      const payload = {
+      if (!hasThumbnailInput) {
+        setErrorMessage("Defina uma thumbnail por URL ou upload de arquivo.");
+        setIsSaving(false);
+        return;
+      }
+
+      const basePayload = {
         slug,
         title: formState.title,
         shortDescription: formState.shortDescription,
         fullDescription: formState.fullDescription,
         tags: formState.tags,
-        thumbnailUrl,
-        mediaUrls,
+        thumbnailUrl: formState.thumbnailUrl.trim(),
+        mediaUrls: parseMediaUrlsFromTextarea(),
       };
 
-      const endpoint = formState.id ? `/api/admin/projects/${formState.id}` : "/api/admin/projects";
-      const method = formState.id ? "PATCH" : "POST";
+      if (formState.id) {
+        const withUploads = await buildMediaUrls(
+          formState.id,
+          basePayload.thumbnailUrl,
+          basePayload.mediaUrls,
+        );
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error("Invalid payload");
+        await saveProject({
+          ...basePayload,
+          ...withUploads,
+        });
+      } else {
+        await saveProject({
+          ...basePayload,
+          thumbnailUrl: basePayload.thumbnailUrl || "pending-thumbnail",
+        });
       }
 
       await loadProjects();

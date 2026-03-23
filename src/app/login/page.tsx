@@ -1,9 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { IconArrowLeft } from "@tabler/icons-react";
 
+import { requireAdminSession } from "@/modules/auth/presentation/server/requireAdminSession";
 import { LoginForm } from "@/modules/auth/presentation/components/LoginForm";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const adminSession = await requireAdminSession();
+
+  if (adminSession) {
+    redirect("/admin/projects");
+  }
+
   return (
     <main className="relative flex flex-1 items-center justify-center px-6 py-16 md:px-12">
       <Link

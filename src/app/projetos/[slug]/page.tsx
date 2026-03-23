@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 
 import { GetProjectBySlugUseCase } from "@/modules/portfolio/application/use-cases/GetProjectBySlugUseCase";
 import { isFirebaseServiceError } from "@/modules/portfolio/infrastructure/adapters/firebase/isFirebaseServiceError";
+import { InMemoryProjectRepository } from "@/modules/portfolio/infrastructure/adapters/in-memory/InMemoryProjectRepository";
+import { seedProjects } from "@/modules/portfolio/infrastructure/data/seedProjects";
+import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure/factories/createAdminProjectRepository";
 import { createProjectRepository } from "@/modules/portfolio/infrastructure/factories/createProjectRepository";
 import { PortfolioMaintenanceSection } from "@/modules/portfolio/presentation/components/PortfolioMaintenanceSection";
 import { ProjectDetailsSection } from "@/modules/portfolio/presentation/components/ProjectDetailsSection";
@@ -43,7 +46,33 @@ async function loadProjectDetailsPageData(slug: string): Promise<ProjectDetailsP
       throw error;
     }
 
-    return { status: "maintenance" };
+    try {
+      const adminRepository = createAdminProjectRepository();
+      const adminUseCase = new GetProjectBySlugUseCase(adminRepository);
+      const adminProject = await adminUseCase.execute(slug);
+
+      if (adminProject) {
+        return {
+          status: "ok",
+          projectDetails: mapProjectToDetailsViewModel(adminProject),
+        };
+      }
+    } catch {
+      // Continue to local fallback when server credentials are unavailable.
+    }
+
+    const fallbackRepository = new InMemoryProjectRepository(seedProjects);
+    const fallbackUseCase = new GetProjectBySlugUseCase(fallbackRepository);
+    const fallbackProject = await fallbackUseCase.execute(slug);
+
+    if (!fallbackProject) {
+      return { status: "not-found" };
+    }
+
+    return {
+      status: "ok",
+      projectDetails: mapProjectToDetailsViewModel(fallbackProject),
+    };
   }
 }
 
