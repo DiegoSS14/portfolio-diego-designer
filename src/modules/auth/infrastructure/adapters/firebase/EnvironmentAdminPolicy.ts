@@ -24,6 +24,10 @@ export class EnvironmentAdminPolicy implements AdminPolicy {
   private readonly adminEmails = readAllowedAdminEmails();
 
   isAdmin(user: VerifiedAuthUser): boolean {
+    if (user.isAdmin) {
+      return true;
+    }
+
     if (this.adminUids.length === 0 && this.adminEmails.length === 0) {
       return false;
     }

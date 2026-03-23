@@ -4,7 +4,7 @@ import {
   createProjectUpsertPayload,
   type RawProjectPayload,
 } from "@/modules/portfolio/application/use-cases/UpsertProjectPayloadFactory";
-import { createProjectRepository } from "@/modules/portfolio/infrastructure/factories/createProjectRepository";
+import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure/factories/createAdminProjectRepository";
 import { requireAdminSession } from "@/modules/auth/presentation/server/requireAdminSession";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const repository = createProjectRepository();
+  const repository = createAdminProjectRepository();
   const getProjectsUseCase = new GetPortfolioProjectsUseCase(repository);
   const projects = await getProjectsUseCase.execute();
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   try {
     const payload = createProjectUpsertPayload(body);
-    const repository = createProjectRepository();
+    const repository = createAdminProjectRepository();
     const createProjectUseCase = new CreateProjectUseCase(repository);
     const createdProject = await createProjectUseCase.execute(payload);
 

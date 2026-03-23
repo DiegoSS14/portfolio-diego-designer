@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { IconLogin2, IconLayoutDashboard } from "@tabler/icons-react";
+import { IconLayoutDashboard, IconPencilCog } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 interface SessionResponse {
   authenticated: boolean;
 }
 
 export function AuthAccessButton() {
+  const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
@@ -39,6 +41,10 @@ export function AuthAccessButton() {
     };
   }, []);
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   const href = isAuthenticated ? "/admin/projects" : "/login";
 
   return (
@@ -48,7 +54,7 @@ export function AuthAccessButton() {
       aria-label={isAuthenticated ? "Abrir painel administrativo" : "Ir para o login"}
       title={isAuthenticated ? "Painel" : "Login"}
     >
-      {isAuthenticated ? <IconLayoutDashboard size={16} stroke={1.8} /> : <IconLogin2 size={16} stroke={1.8} />}
+      {isAuthenticated ? <IconLayoutDashboard size={16} stroke={1.8} /> : <IconPencilCog size={16} stroke={1.8} />}
     </Link>
   );
 }

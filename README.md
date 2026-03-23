@@ -32,6 +32,9 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 AUTH_SESSION_SECRET=
 AUTH_ADMIN_UIDS=
 AUTH_ADMIN_EMAILS=
+FIREBASE_ADMIN_PROJECT_ID=
+FIREBASE_ADMIN_CLIENT_EMAIL=
+FIREBASE_ADMIN_PRIVATE_KEY=
 ```
 
 Sobre autenticacao administrativa:
@@ -39,6 +42,9 @@ Sobre autenticacao administrativa:
 - `AUTH_SESSION_SECRET`: segredo para assinar cookie de sessao (minimo 16 caracteres).
 - `AUTH_ADMIN_UIDS`: lista de UIDs Firebase com permissao de admin, separados por virgula.
 - `AUTH_ADMIN_EMAILS`: lista de emails com permissao de admin, separados por virgula.
+- `FIREBASE_ADMIN_PROJECT_ID`: project id da service account.
+- `FIREBASE_ADMIN_CLIENT_EMAIL`: client email da service account.
+- `FIREBASE_ADMIN_PRIVATE_KEY`: private key da service account (com `\n` nas quebras de linha).
 
 Se as variaveis nao forem definidas, o sistema usa automaticamente o adaptador in-memory com dados locais.
 
@@ -74,7 +80,9 @@ src/
 - Porta principal: `ProjectRepository`
 - Adaptador 1: `FirebaseProjectRepository`
 - Adaptador 2: `InMemoryProjectRepository`
-- Fabrica de selecao: `createProjectRepository`
+- Adaptador administrativo: `FirebaseAdminProjectRepository`
+- Fabrica de selecao publica: `createProjectRepository`
+- Fabrica administrativa: `createAdminProjectRepository`
 
 Essa estrutura permite trocar Firebase por qualquer outro provedor sem alterar os casos de uso.
 

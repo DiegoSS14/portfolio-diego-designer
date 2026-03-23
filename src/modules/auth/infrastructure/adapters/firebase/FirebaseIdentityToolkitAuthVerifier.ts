@@ -55,6 +55,7 @@ export class FirebaseIdentityToolkitAuthVerifier implements AuthTokenVerifier {
     return {
       uid: firebaseUser.localId,
       email: firebaseUser.email ?? null,
+      isAdmin: false,
     };
   }
 }

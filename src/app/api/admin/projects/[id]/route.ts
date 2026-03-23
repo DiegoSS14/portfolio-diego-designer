@@ -4,7 +4,7 @@ import {
   createProjectUpsertPayload,
   type RawProjectPayload,
 } from "@/modules/portfolio/application/use-cases/UpsertProjectPayloadFactory";
-import { createProjectRepository } from "@/modules/portfolio/infrastructure/factories/createProjectRepository";
+import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure/factories/createAdminProjectRepository";
 import { requireAdminSession } from "@/modules/auth/presentation/server/requireAdminSession";
 
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const payload = createProjectUpsertPayload(body);
-    const repository = createProjectRepository();
+    const repository = createAdminProjectRepository();
     const updateProjectUseCase = new UpdateProjectUseCase(repository);
     const updatedProject = await updateProjectUseCase.execute(id, payload);
 
@@ -47,7 +47,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const repository = createProjectRepository();
+  const repository = createAdminProjectRepository();
   const deleteProjectUseCase = new DeleteProjectUseCase(repository);
   const removed = await deleteProjectUseCase.execute(id);
 

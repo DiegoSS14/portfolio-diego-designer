@@ -4,12 +4,12 @@ import { EndAdminSessionUseCase } from "../../application/use-cases/EndAdminSess
 import { CookieSessionFactory } from "../adapters/cookie/CookieSessionFactory";
 import { CookieSessionStorage } from "../adapters/cookie/CookieSessionStorage";
 import { EnvironmentAdminPolicy } from "../adapters/firebase/EnvironmentAdminPolicy";
-import { FirebaseIdentityToolkitAuthVerifier } from "../adapters/firebase/FirebaseIdentityToolkitAuthVerifier";
+import { FirebaseAdminAuthTokenVerifier } from "../adapters/firebase/FirebaseAdminAuthTokenVerifier";
 
 export function createAuthDependencies() {
   const sessionStorage = new CookieSessionStorage();
   const sessionFactory = new CookieSessionFactory();
-  const tokenVerifier = new FirebaseIdentityToolkitAuthVerifier();
+  const tokenVerifier = new FirebaseAdminAuthTokenVerifier();
   const adminPolicy = new EnvironmentAdminPolicy();
 
   return {
