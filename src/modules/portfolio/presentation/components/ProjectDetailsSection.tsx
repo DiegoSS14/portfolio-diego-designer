@@ -1,6 +1,6 @@
 "use client";
 
-import { IconLayoutGrid, IconLayoutList } from "@tabler/icons-react";
+import { IconArrowLeft, IconLayoutGrid, IconLayoutList } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -18,9 +18,11 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
     <article className="space-y-10">
       <Link
         href="/"
-        className="inline-flex items-center text-sm uppercase tracking-[0.2em] text-ui-text-muted transition hover:text-ui-text"
+        className="inline-flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-ui-text-muted transition hover:text-ui-text"
+        title="Voltar para o portfolio"
       >
-        Voltar para o portfolio
+        <IconArrowLeft size={18} stroke={1.8} aria-hidden />
+        <span className="sr-only">Voltar para o portfolio</span>
       </Link>
 
       <header className="space-y-5">
