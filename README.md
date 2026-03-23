@@ -29,7 +29,16 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+AUTH_SESSION_SECRET=
+AUTH_ADMIN_UIDS=
+AUTH_ADMIN_EMAILS=
 ```
+
+Sobre autenticacao administrativa:
+
+- `AUTH_SESSION_SECRET`: segredo para assinar cookie de sessao (minimo 16 caracteres).
+- `AUTH_ADMIN_UIDS`: lista de UIDs Firebase com permissao de admin, separados por virgula.
+- `AUTH_ADMIN_EMAILS`: lista de emails com permissao de admin, separados por virgula.
 
 Se as variaveis nao forem definidas, o sistema usa automaticamente o adaptador in-memory com dados locais.
 
