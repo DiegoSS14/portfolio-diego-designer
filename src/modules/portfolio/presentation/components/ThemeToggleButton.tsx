@@ -1,50 +1,19 @@
 "use client";
 
-import { IconMoonStars, IconSunHigh } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-
-type ThemeMode = "dark" | "light";
-
-const THEME_STORAGE_KEY = "portfolio-theme";
-
-function applyThemeToDocument(theme: ThemeMode): void {
-  document.documentElement.setAttribute("data-theme", theme);
-}
+import { IconSunHigh } from "@tabler/icons-react";
+import { useTheme } from "@/shared/theme/ThemeProvider";
 
 export function ThemeToggleButton() {
-  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") {
-      return "dark";
-    }
-
-    const persistedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    return persistedTheme ?? "dark";
-  });
-
-  useEffect(() => {
-    applyThemeToDocument(currentTheme);
-  }, [currentTheme]);
-
-  function toggleTheme(): void {
-    const nextTheme: ThemeMode = currentTheme === "dark" ? "light" : "dark";
-    setCurrentTheme(nextTheme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-    applyThemeToDocument(nextTheme);
-  }
+  const { toggleTheme } = useTheme();
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex items-center gap-2 rounded-full border border-ui-border bg-ui-surface/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-ui-text-muted transition hover:text-ui-text"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-ui-border bg-ui-surface/80 text-ui-text-muted shadow-[0_10px_28px_rgba(0,0,0,0.2)] backdrop-blur-sm transition hover:text-ui-text"
       aria-label="Alternar tema escuro e claro"
     >
-      {currentTheme === "dark" ? (
-        <IconSunHigh size={16} stroke={1.8} aria-hidden />
-      ) : (
-        <IconMoonStars size={16} stroke={1.8} aria-hidden />
-      )}
-      {currentTheme === "dark" ? "Tema Claro" : "Tema Escuro"}
+      <IconSunHigh size={16} stroke={1.8} aria-hidden />
     </button>
   );
 }

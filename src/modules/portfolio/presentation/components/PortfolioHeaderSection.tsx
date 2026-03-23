@@ -1,5 +1,3 @@
-import { ThemeToggleButton } from "./ThemeToggleButton";
-
 interface PortfolioHeaderSectionProps {
   ownerName: string;
   businessStatement: string;
@@ -23,7 +21,6 @@ export function PortfolioHeaderSection({
               {ownerName}
             </h1>
           </div>
-          <ThemeToggleButton />
         </div>
 
         <div className="space-y-10 pb-3 md:pb-6">

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import { ThemeToggleButton } from "@/modules/portfolio/presentation/components/ThemeToggleButton";
+import { ThemeProvider } from "@/shared/theme/ThemeProvider";
 
-import { ThemeInitializerScript } from "@/shared/theme/ThemeInitializerScript";
 import "./globals.css";
 
 const sansFont = Manrope({
@@ -29,12 +30,15 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${sansFont.variable} ${displaySansFont.variable} h-full antialiased`}
-      suppressHydrationWarning
     >
-      <head>
-        <ThemeInitializerScript />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>
+          <div className="fixed top-5 right-5 z-50 md:top-8 md:right-8">
+            <ThemeToggleButton />
+          </div>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
