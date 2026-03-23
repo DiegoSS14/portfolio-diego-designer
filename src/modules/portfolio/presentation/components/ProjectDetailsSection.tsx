@@ -92,8 +92,9 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
                 alt={`Imagem ${index + 1} do projeto ${project.title}`}
                 fill
                 quality={100}
+                unoptimized
                 className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
+                sizes="100vw"
               />
             </div>
           </figure>

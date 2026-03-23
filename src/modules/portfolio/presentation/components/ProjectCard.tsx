@@ -18,8 +18,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
             fill
             quality={100}
             priority
+            unoptimized
             className="object-cover transition duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, 50vw"
+            sizes="100vw"
           />
         </div>
 
