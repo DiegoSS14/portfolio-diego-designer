@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
 import { isFirebaseServiceError } from "@/modules/portfolio/infrastructure/adapters/firebase/isFirebaseServiceError";
 import { InMemoryProjectRepository } from "@/modules/portfolio/infrastructure/adapters/in-memory/InMemoryProjectRepository";
@@ -15,6 +17,8 @@ interface HomePageDataState {
   projectCards: ReturnType<typeof mapProjectToCardViewModel>[];
   isMaintenanceMode: boolean;
 }
+
+const PROJECTS_CACHE_TAG = "projects";
 
 async function loadHomePageData(): Promise<HomePageDataState> {
   const projectRepository = createProjectRepository();
@@ -56,8 +60,16 @@ async function loadHomePageData(): Promise<HomePageDataState> {
   }
 }
 
+const loadHomePageDataFromCache = unstable_cache(
+  async () => loadHomePageData(),
+  ["home-page-data"],
+  {
+    tags: [PROJECTS_CACHE_TAG],
+  },
+);
+
 export default async function HomePage() {
-  const { projectCards, isMaintenanceMode } = await loadHomePageData();
+  const { projectCards, isMaintenanceMode } = await loadHomePageDataFromCache();
 
   if (isMaintenanceMode) {
     return (

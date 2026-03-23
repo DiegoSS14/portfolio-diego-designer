@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
 
 import { GetProjectBySlugUseCase } from "@/modules/portfolio/application/use-cases/GetProjectBySlugUseCase";
@@ -13,6 +14,8 @@ import { mapProjectToDetailsViewModel } from "@/modules/portfolio/presentation/m
 interface ProjectDetailsPageProps {
   params: Promise<{ slug: string }>;
 }
+
+const PROJECTS_CACHE_TAG = "projects";
 
 type ProjectDetailsPageDataState =
   | {
@@ -76,9 +79,17 @@ async function loadProjectDetailsPageData(slug: string): Promise<ProjectDetailsP
   }
 }
 
+const loadProjectDetailsPageDataFromCache = unstable_cache(
+  async (slug: string) => loadProjectDetailsPageData(slug),
+  ["project-details-page-data"],
+  {
+    tags: [PROJECTS_CACHE_TAG],
+  },
+);
+
 export default async function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
   const { slug } = await params;
-  const dataState = await loadProjectDetailsPageData(slug);
+  const dataState = await loadProjectDetailsPageDataFromCache(slug);
 
   if (dataState.status === "not-found") {
     notFound();

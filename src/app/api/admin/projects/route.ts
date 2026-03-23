@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+
 import { CreateProjectUseCase } from "@/modules/portfolio/application/use-cases/CreateProjectUseCase";
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
 import {
@@ -8,6 +10,7 @@ import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure
 import { requireAdminSession } from "@/modules/auth/presentation/server/requireAdminSession";
 
 export const runtime = "nodejs";
+const PROJECTS_CACHE_TAG = "projects";
 
 export async function GET() {
   const adminSession = await requireAdminSession();
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
     const repository = createAdminProjectRepository();
     const createProjectUseCase = new CreateProjectUseCase(repository);
     const createdProject = await createProjectUseCase.execute(payload);
+    revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
 
     return Response.json({ project: createdProject }, { status: 201 });
   } catch {

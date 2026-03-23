@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+
 import { DeleteProjectUseCase } from "@/modules/portfolio/application/use-cases/DeleteProjectUseCase";
 import { UpdateProjectUseCase } from "@/modules/portfolio/application/use-cases/UpdateProjectUseCase";
 import {
@@ -8,6 +10,7 @@ import { createAdminProjectRepository } from "@/modules/portfolio/infrastructure
 import { requireAdminSession } from "@/modules/auth/presentation/server/requireAdminSession";
 
 export const runtime = "nodejs";
+const PROJECTS_CACHE_TAG = "projects";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -33,6 +36,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       return Response.json({ error: "Project not found." }, { status: 404 });
     }
 
+    revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
+
     return Response.json({ project: updatedProject });
   } catch {
     return Response.json({ error: "Invalid project payload." }, { status: 400 });
@@ -54,6 +59,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (!removed) {
     return Response.json({ error: "Project not found." }, { status: 404 });
   }
+
+  revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
 
   return Response.json({ removed: true });
 }
