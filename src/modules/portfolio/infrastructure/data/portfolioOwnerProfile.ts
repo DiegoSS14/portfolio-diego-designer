@@ -8,14 +8,15 @@ export interface PortfolioOwnerProfile {
 
 export const portfolioOwnerProfile: PortfolioOwnerProfile = {
   ownerName: "Diego Sousa",
-  businessStatement: "MARCAS CLARAS. EXPERIENCIAS MEMORAVEIS.",
+  businessStatement: "SITES MEMORÁVEIS. EXPERIENCIAS MARCANTES.",
   businessKeywords: [
-    "Estrategia",
+    "Web Design",
     "Identidade Visual",
+    "Design para redes sociais",
     "Minimalismo",
-    "Direcao Criativa",
+    "Direção Criativa",
   ],
   whatsappUrl:
-    "https://wa.me/5511999999999?text=Oi%20Diego%20Sousa%2C%20quero%20conversar%20sobre%20um%20projeto.",
-  instagramUrl: "https://www.instagram.com/diegosousa",
+    "https://wa.me/5561994569910?text=Oi%20Diego%20Sousa%2C%20quero%20conversar%20sobre%20um%20projeto.",
+  instagramUrl: "https://www.instagram.com/diegos_014/",
 };
