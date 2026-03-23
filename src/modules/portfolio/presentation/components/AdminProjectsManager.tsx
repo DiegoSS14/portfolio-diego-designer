@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
+  IconArrowLeft,
   IconDeviceFloppy,
   IconEdit,
   IconLogout,
@@ -33,6 +34,17 @@ interface ProjectMutationResponse {
 
 interface ApiErrorResponse {
   error?: string;
+}
+
+interface RemovedMediaState {
+  url: string;
+  index: number;
+}
+
+interface PendingProjectDeletionState {
+  project: Project;
+  index: number;
+  timeoutId: number;
 }
 
 interface ProjectFormState {
@@ -100,6 +112,10 @@ export function AdminProjectsManager() {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [formState, setFormState] = useState<ProjectFormState>(emptyFormState);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [removedThumbnailUrl, setRemovedThumbnailUrl] = useState<string | null>(null);
+  const [removedMedia, setRemovedMedia] = useState<RemovedMediaState | null>(null);
+  const [pendingProjectDeletion, setPendingProjectDeletion] =
+    useState<PendingProjectDeletionState | null>(null);
 
   const readApiError = useCallback(async (response: Response): Promise<string> => {
     try {
@@ -138,6 +154,8 @@ export function AdminProjectsManager() {
 
   function openCreateForm() {
     setFormState(emptyFormState);
+    setRemovedThumbnailUrl(null);
+    setRemovedMedia(null);
     setIsFormVisible(true);
   }
 
@@ -154,7 +172,15 @@ export function AdminProjectsManager() {
       thumbnailFile: null,
       galleryFiles: [],
     });
+    setRemovedThumbnailUrl(null);
+    setRemovedMedia(null);
     setIsFormVisible(true);
+  }
+
+  function closeForm() {
+    setIsFormVisible(false);
+    setRemovedThumbnailUrl(null);
+    setRemovedMedia(null);
   }
 
   async function waitForFirebaseUser(): Promise<boolean> {
@@ -340,6 +366,8 @@ export function AdminProjectsManager() {
 
       await loadProjects();
       setFormState(emptyFormState);
+      setRemovedThumbnailUrl(null);
+      setRemovedMedia(null);
       setIsFormVisible(false);
     } catch (error) {
       if (error instanceof Error && error.message) {
@@ -352,17 +380,59 @@ export function AdminProjectsManager() {
     }
   }
 
-  async function handleDelete(projectId: string) {
+  const finalizeProjectDeletion = useCallback(async (projectId: string) => {
     const response = await fetch(`/api/admin/projects/${projectId}`, {
       method: "DELETE",
     });
 
     if (!response.ok) {
       setErrorMessage("Falha ao remover projeto.");
+      await loadProjects();
+    }
+  }, [loadProjects]);
+
+  async function handleDelete(projectId: string) {
+    const targetIndex = projects.findIndex((project) => project.id === projectId);
+    const targetProject = projects[targetIndex];
+
+    if (!targetProject || targetIndex < 0) {
       return;
     }
 
-    await loadProjects();
+    if (pendingProjectDeletion) {
+      window.clearTimeout(pendingProjectDeletion.timeoutId);
+      await finalizeProjectDeletion(pendingProjectDeletion.project.id);
+      setPendingProjectDeletion(null);
+    }
+
+    setProjects((prev) => prev.filter((project) => project.id !== projectId));
+
+    const timeoutId = window.setTimeout(() => {
+      void finalizeProjectDeletion(targetProject.id);
+      setPendingProjectDeletion(null);
+    }, 5000);
+
+    setPendingProjectDeletion({
+      project: targetProject,
+      index: targetIndex,
+      timeoutId,
+    });
+  }
+
+  function handleUndoProjectDeletion() {
+    if (!pendingProjectDeletion) {
+      return;
+    }
+
+    window.clearTimeout(pendingProjectDeletion.timeoutId);
+
+    setProjects((prev) => {
+      const nextProjects = [...prev];
+      nextProjects.splice(pendingProjectDeletion.index, 0, pendingProjectDeletion.project);
+      return nextProjects;
+    });
+
+    setPendingProjectDeletion(null);
   }
 
   async function handleLogout() {
@@ -408,15 +478,41 @@ export function AdminProjectsManager() {
         </p>
       ) : null}
 
+      {pendingProjectDeletion ? (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-ui-border bg-ui-surface/85 px-4 py-3">
+          <p className="text-sm text-ui-text">
+            Projeto removido da lista. Voce pode desfazer em alguns segundos.
+          </p>
+          <button
+            type="button"
+            onClick={handleUndoProjectDeletion}
+            className="inline-flex items-center rounded-lg border border-ui-border bg-ui-bg px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text"
+          >
+            Desfazer
+          </button>
+        </div>
+      ) : null}
+
       {isFormVisible ? (
         <form onSubmit={handleSubmit} className="mb-10 rounded-3xl border border-ui-border bg-ui-surface/80 p-6 md:p-8">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-display text-2xl uppercase tracking-[0.08em] text-ui-text">
-              {formState.id ? "Editar Projeto" : "Novo Projeto"}
-            </h2>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={closeForm}
+                className="inline-flex items-center gap-2 rounded-xl border border-ui-border bg-ui-bg px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-ui-text-muted transition hover:text-ui-text"
+                aria-label="Voltar para lista de projetos"
+              >
+                <IconArrowLeft size={14} />
+                Voltar
+              </button>
+              <h2 className="font-display text-2xl uppercase tracking-[0.08em] text-ui-text">
+                {formState.id ? "Editar Projeto" : "Novo Projeto"}
+              </h2>
+            </div>
             <button
               type="button"
-              onClick={() => setIsFormVisible(false)}
+              onClick={closeForm}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-ui-border text-ui-text-muted"
               aria-label="Fechar formulario"
             >
@@ -470,60 +566,129 @@ export function AdminProjectsManager() {
               className="rounded-xl border border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text outline-none md:col-span-2"
             />
 
-            {formState.existingThumbnailUrl ? (
-              <div className="rounded-xl border border-ui-border bg-ui-bg p-3 md:col-span-2">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
-                    Thumbnail atual
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setFormState((prev) => ({ ...prev, existingThumbnailUrl: "" }))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
-                    aria-label="Remover thumbnail atual"
-                    title="Remover thumbnail atual"
-                  >
-                    <IconX size={14} />
-                  </button>
-                </div>
-                <Image
-                  src={formState.existingThumbnailUrl}
-                  alt="Thumbnail atual do projeto"
-                  width={960}
-                  height={540}
-                  unoptimized
-                  className="h-40 w-full rounded-lg object-cover"
-                />
-              </div>
-            ) : null}
+            <div className="rounded-xl border border-ui-border bg-ui-bg/60 p-4 md:col-span-2">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
+                Thumbnail
+              </p>
 
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted md:col-span-2">
-              <IconPhotoPlus size={16} />
-              Upload thumbnail
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) =>
+              <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted">
+                <IconPhotoPlus size={16} />
+                Upload thumbnail
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      thumbnailFile: event.target.files?.[0] ?? null,
+                    }))
+                  }
+                />
+              </label>
+              <SelectedUploadFilesList
+                files={formState.thumbnailFile ? [formState.thumbnailFile] : []}
+                onRemove={() =>
                   setFormState((prev) => ({
                     ...prev,
-                    thumbnailFile: event.target.files?.[0] ?? null,
+                    thumbnailFile: null,
                   }))
                 }
               />
-            </label>
-            <SelectedUploadFilesList
-              files={formState.thumbnailFile ? [formState.thumbnailFile] : []}
-              onRemove={() =>
-                setFormState((prev) => ({
-                  ...prev,
-                  thumbnailFile: null,
-                }))
-              }
-            />
 
-            {formState.existingMediaUrls.length > 0 ? (
-              <ul className="space-y-2 md:col-span-2">
+              {formState.existingThumbnailUrl ? (
+                <div className="mt-3 rounded-xl border border-ui-border bg-ui-bg p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
+                      Thumbnail atual
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!formState.existingThumbnailUrl) {
+                          return;
+                        }
+
+                        setRemovedThumbnailUrl(formState.existingThumbnailUrl);
+                        setFormState((prev) => ({ ...prev, existingThumbnailUrl: "" }));
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
+                      aria-label="Remover thumbnail atual"
+                      title="Remover thumbnail atual"
+                    >
+                      <IconTrash size={14} />
+                    </button>
+                  </div>
+                  <Image
+                    src={formState.existingThumbnailUrl}
+                    alt="Thumbnail atual do projeto"
+                    width={960}
+                    height={540}
+                    unoptimized
+                    className="h-40 w-full rounded-lg object-cover"
+                  />
+                </div>
+              ) : null}
+
+              {removedThumbnailUrl ? (
+                <div className="mt-3 rounded-xl border border-ui-border bg-ui-bg p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm text-ui-text">Thumbnail removida.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormState((prev) => ({ ...prev, existingThumbnailUrl: removedThumbnailUrl }));
+                        setRemovedThumbnailUrl(null);
+                      }}
+                      className="inline-flex items-center rounded-lg border border-ui-border bg-ui-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text"
+                    >
+                      Desfazer
+                    </button>
+                  </div>
+                  <Image
+                    src={removedThumbnailUrl}
+                    alt="Thumbnail removida do projeto"
+                    width={960}
+                    height={540}
+                    unoptimized
+                    className="h-40 w-full rounded-lg object-cover opacity-70"
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-xl border border-ui-border bg-ui-bg/60 p-4 md:col-span-2">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
+                Imagens da galeria
+              </p>
+
+              <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted">
+                <IconUpload size={16} />
+                Upload de imagens da galeria (multiplas de uma vez)
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(event) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      galleryFiles: event.target.files ? Array.from(event.target.files) : [],
+                    }))
+                  }
+                />
+              </label>
+              <SelectedUploadFilesList
+                files={formState.galleryFiles}
+                onRemove={(targetIndex) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    galleryFiles: prev.galleryFiles.filter((_, index) => index !== targetIndex),
+                  }))
+                }
+              />
+
+              <ul className="mt-3 space-y-2">
                 {formState.existingMediaUrls.map((mediaUrl, index) => (
                   <li
                     key={`${mediaUrl}-${index}`}
@@ -535,19 +700,20 @@ export function AdminProjectsManager() {
                       </p>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setRemovedMedia({ url: mediaUrl, index });
                           setFormState((prev) => ({
                             ...prev,
                             existingMediaUrls: prev.existingMediaUrls.filter(
                               (_, mediaIndex) => mediaIndex !== index,
                             ),
-                          }))
-                        }
+                          }));
+                        }}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
                         aria-label={`Remover imagem atual ${index + 1}`}
                         title="Remover imagem"
                       >
-                        <IconX size={14} />
+                        <IconTrash size={14} />
                       </button>
                     </div>
                     <Image
@@ -560,34 +726,44 @@ export function AdminProjectsManager() {
                     />
                   </li>
                 ))}
-              </ul>
-            ) : null}
 
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ui-border bg-ui-bg px-4 py-3 text-sm text-ui-text-muted md:col-span-2">
-              <IconUpload size={16} />
-              Upload de imagens da galeria (multiplas de uma vez)
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(event) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    galleryFiles: event.target.files ? Array.from(event.target.files) : [],
-                  }))
-                }
-              />
-            </label>
-            <SelectedUploadFilesList
-              files={formState.galleryFiles}
-              onRemove={(targetIndex) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  galleryFiles: prev.galleryFiles.filter((_, index) => index !== targetIndex),
-                }))
-              }
-            />
+                {removedMedia ? (
+                  <li className="rounded-xl border border-ui-border bg-ui-bg p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm text-ui-text">Imagem removida da galeria.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormState((prev) => {
+                            const nextMediaUrls = [...prev.existingMediaUrls];
+                            const insertIndex = Math.min(removedMedia.index, nextMediaUrls.length);
+                            nextMediaUrls.splice(insertIndex, 0, removedMedia.url);
+
+                            return {
+                              ...prev,
+                              existingMediaUrls: nextMediaUrls,
+                            };
+                          });
+
+                          setRemovedMedia(null);
+                        }}
+                        className="inline-flex items-center rounded-lg border border-ui-border bg-ui-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text"
+                      >
+                        Desfazer
+                      </button>
+                    </div>
+                    <Image
+                      src={removedMedia.url}
+                      alt="Imagem removida da galeria"
+                      width={960}
+                      height={540}
+                      unoptimized
+                      className="h-36 w-full rounded-lg object-cover opacity-70"
+                    />
+                  </li>
+                ) : null}
+              </ul>
+            </div>
           </div>
 
           <div className="mt-6">
