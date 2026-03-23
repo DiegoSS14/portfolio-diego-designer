@@ -41,7 +41,7 @@ export function AuthAccessButton() {
     };
   }, []);
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/admin/projects") {
     return null;
   }
 
