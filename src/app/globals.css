@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg: #0f1113;
+  --color-surface: #161a1f;
+  --color-surface-strong: #202730;
+  --color-text: #f3f4f5;
+  --color-text-muted: #afb5bd;
+  --color-border: #2a3139;
+  --color-accent: #d6b166;
+  --color-accent-contrast: #1a1d21;
+  --gradient-start: #151c23;
+  --gradient-end: #0f1113;
+  --gradient-spot-a: rgb(151 172 188 / 28%);
+  --gradient-spot-b: rgb(225 208 180 / 14%);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-manrope);
+  --font-display: var(--font-space-grotesk);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="light"] {
+  --color-bg: #efece4;
+  --color-surface: #fbf7ef;
+  --color-surface-strong: #f4ecdc;
+  --color-text: #212121;
+  --color-text-muted: #58544c;
+  --color-border: #d2c8b4;
+  --color-accent: #1557b0;
+  --color-accent-contrast: #ffffff;
+  --gradient-start: #f8f6f1;
+  --gradient-end: #ede9df;
+  --gradient-spot-a: rgb(188 202 213 / 40%);
+  --gradient-spot-b: rgb(248 239 225 / 65%);
+}
+
+html,
+body {
+  background:
+    radial-gradient(1000px 560px at 22% 42%, var(--gradient-spot-a), transparent 70%),
+    radial-gradient(760px 480px at 82% 18%, var(--gradient-spot-b), transparent 75%),
+    linear-gradient(180deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  color: var(--color-text);
+  font-family: var(--font-sans), sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), sans-serif;
+}
+
+@keyframes revealOnLoad {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-on-load {
+  opacity: 0;
+  animation: revealOnLoad 0.8s ease-out forwards;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.14s;
+}
+
+.reveal-delay-2 {
+  animation-delay: 0.24s;
 }
