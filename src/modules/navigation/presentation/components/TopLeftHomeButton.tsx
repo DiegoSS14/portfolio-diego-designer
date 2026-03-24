@@ -7,7 +7,7 @@ import { IconHome } from "@tabler/icons-react";
 export function TopLeftHomeButton() {
   const pathname = usePathname();
 
-  const shouldShowButton = pathname === "/admin/projects" || pathname.startsWith("/projetos/");
+  const shouldShowButton = pathname === "/admin/projects";
 
   if (!shouldShowButton) {
     return null;
