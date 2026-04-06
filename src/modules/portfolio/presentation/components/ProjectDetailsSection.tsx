@@ -87,18 +87,17 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
         }
       >
         {project.mediaUrls.map((mediaUrl, index) => (
-          <figure key={mediaUrl} className="overflow-hidden rounded-2xl border border-ui-border">
-            <div className="relative aspect-video bg-ui-surface">
-              <Image
-                src={mediaUrl}
-                alt={`Imagem ${index + 1} do projeto ${project.title}`}
-                fill
-                quality={100}
-                unoptimized
-                className="object-cover"
-                sizes="100vw"
-              />
-            </div>
+          <figure key={mediaUrl} className="overflow-hidden rounded-2xl border border-ui-border bg-ui-surface">
+            <Image
+              src={mediaUrl}
+              alt={`Imagem ${index + 1} do projeto ${project.title}`}
+              width={1600}
+              height={1200}
+              quality={100}
+              unoptimized
+              className="h-auto w-full"
+              sizes={galleryViewMode === "grid" ? "(min-width: 768px) 50vw, 100vw" : "100vw"}
+            />
           </figure>
         ))}
       </div>

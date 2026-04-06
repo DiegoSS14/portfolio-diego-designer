@@ -102,6 +102,25 @@ function sanitizeFileName(fileName: string): string {
     .toLowerCase();
 }
 
+function moveArrayItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex === toIndex) {
+    return items;
+  }
+
+  if (fromIndex < 0 || fromIndex >= items.length) {
+    return items;
+  }
+
+  if (toIndex < 0 || toIndex >= items.length) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, movedItem);
+  return nextItems;
+}
+
 function generateUploadId(): string {
   if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
@@ -781,6 +800,12 @@ export function AdminProjectsManager() {
                   setFormState((prev) => ({
                     ...prev,
                     galleryFiles: prev.galleryFiles.filter((_, index) => index !== targetIndex),
+                  }))
+                }
+                onMove={(fromIndex, toIndex) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    galleryFiles: moveArrayItem(prev.galleryFiles, fromIndex, toIndex),
                   }))
                 }
               />
