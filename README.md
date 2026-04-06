@@ -1,6 +1,6 @@
 # Portfolio Designer (Next.js + DDD + Clean Architecture)
 
-Site de portfolio para designer com tema escuro/claro, secao de projetos e pagina de detalhes por projeto.
+Site de portfolio para designer com area publica de projetos e fluxo administrativo completo para criacao, edicao e remocao de projetos.
 
 ## Stack
 
@@ -8,6 +8,46 @@ Site de portfolio para designer com tema escuro/claro, secao de projetos e pagin
 - TypeScript
 - Tailwind CSS
 - Firebase Firestore (via adaptador)
+- Firebase Storage (midias e thumbs)
+- Jest + Testing Library (unitario e integracao)
+
+## Principais features
+
+- Listagem de projetos ordenada por recencia (`updatedAt` e fallback em `createdAt`).
+- Pagina de detalhes por slug com galeria em altura natural de imagem.
+- Login administrativo por sessao (cookies assinados).
+- CRUD administrativo de projetos.
+- Botoes de editar/excluir direto na pagina de detalhes quando autenticado.
+- Confirmacao de exclusao via modal na pagina de detalhes.
+- Upload de imagens com:
+	- preservacao da ordem de selecao,
+	- otimizacao client-side (WebP quando vantajoso),
+	- fallback seguro para geracao de IDs quando `crypto.randomUUID` nao existir.
+- Reordenacao de midias no admin:
+	- drag and drop,
+	- controles de subir/descer,
+	- remocao com opcao de desfazer.
+
+## Testes
+
+- Suite movida para fora de `src`, em `tests/`.
+- Cobertura de integracao para rotas:
+	- `api/admin/projects`
+	- `api/admin/projects/[id]`
+	- `api/auth/session`
+- Cobertura unitaria para:
+	- fabrica de payload,
+	- repositorio in-memory,
+	- fabrica de repositorio,
+	- componentes de apresentacao com interacao.
+
+Comandos:
+
+```bash
+npm test
+npm run test:watch
+npm run test:coverage
+```
 
 ## Como rodar
 
@@ -17,6 +57,12 @@ npm run dev
 ```
 
 Acesse: http://localhost:3000
+
+Para acesso em rede local (LAN), use:
+
+```bash
+npm run dev:lan
+```
 
 ## Variaveis de ambiente (Firebase)
 
