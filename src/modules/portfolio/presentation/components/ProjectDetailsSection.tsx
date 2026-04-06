@@ -18,13 +18,14 @@ import type { ProjectDetailsViewModel } from "../view-models/ProjectCardViewMode
 
 interface ProjectDetailsSectionProps {
   project: ProjectDetailsViewModel;
+  isAuthenticatedOverride?: boolean;
 }
 
 interface SessionResponse {
   authenticated: boolean;
 }
 
-export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
+export function ProjectDetailsSection({ project, isAuthenticatedOverride }: ProjectDetailsSectionProps) {
   const router = useRouter();
   const [galleryViewMode, setGalleryViewMode] = useState<"stacked" | "grid">("stacked");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,6 +35,12 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof isAuthenticatedOverride === "boolean") {
+      setIsAuthenticated(isAuthenticatedOverride);
+      setIsSessionLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     void fetch("/api/auth/session", { cache: "no-store" })
@@ -64,7 +71,7 @@ export function ProjectDetailsSection({ project }: ProjectDetailsSectionProps) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticatedOverride]);
 
   async function confirmDeleteProject() {
     setIsDeleting(true);

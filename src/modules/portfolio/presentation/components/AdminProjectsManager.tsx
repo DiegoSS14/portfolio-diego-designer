@@ -22,6 +22,7 @@ import {
   getFirebaseAuthClient,
   getFirebaseStorageClient,
 } from "@/modules/portfolio/infrastructure/adapters/firebase/firebaseClient";
+import { ReorderableMediaList } from "./ReorderableMediaList";
 import { SelectedUploadFilesList } from "./SelectedUploadFilesList";
 
 interface ProjectsResponse {
@@ -828,81 +829,68 @@ export function AdminProjectsManager() {
                 }
               />
 
-              <ul className="mt-3 space-y-2">
-                {formState.existingMediaUrls.map((mediaUrl, index) => (
-                  <li
-                    key={`${mediaUrl}-${index}`}
-                    className="rounded-xl border border-ui-border bg-ui-bg p-3"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ui-text-muted">
-                        Imagem atual {index + 1}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRemovedMedia({ url: mediaUrl, index });
-                          setFormState((prev) => ({
+              <ReorderableMediaList
+                items={formState.existingMediaUrls.map((mediaUrl, index) => ({
+                  id: `${mediaUrl}-${index}`,
+                  label: `Imagem atual ${index + 1}`,
+                  previewUrl: mediaUrl,
+                }))}
+                onRemove={(targetIndex) => {
+                  const mediaUrl = formState.existingMediaUrls[targetIndex];
+
+                  if (!mediaUrl) {
+                    return;
+                  }
+
+                  setRemovedMedia({ url: mediaUrl, index: targetIndex });
+                  setFormState((prev) => ({
+                    ...prev,
+                    existingMediaUrls: prev.existingMediaUrls.filter((_, mediaIndex) => mediaIndex !== targetIndex),
+                  }));
+                }}
+                onMove={(fromIndex, toIndex) => {
+                  setFormState((prev) => ({
+                    ...prev,
+                    existingMediaUrls: moveArrayItem(prev.existingMediaUrls, fromIndex, toIndex),
+                  }));
+                }}
+              />
+
+              {removedMedia ? (
+                <div className="mt-3 rounded-xl border border-ui-border bg-ui-bg p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm text-ui-text">Imagem removida da galeria.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormState((prev) => {
+                          const nextMediaUrls = [...prev.existingMediaUrls];
+                          const insertIndex = Math.min(removedMedia.index, nextMediaUrls.length);
+                          nextMediaUrls.splice(insertIndex, 0, removedMedia.url);
+
+                          return {
                             ...prev,
-                            existingMediaUrls: prev.existingMediaUrls.filter(
-                              (_, mediaIndex) => mediaIndex !== index,
-                            ),
-                          }));
-                        }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border text-ui-text-muted transition hover:text-ui-text"
-                        aria-label={`Remover imagem atual ${index + 1}`}
-                        title="Remover imagem"
-                      >
-                        <IconTrash size={14} />
-                      </button>
-                    </div>
-                    <Image
-                      src={mediaUrl}
-                      alt={`Imagem atual ${index + 1} do projeto`}
-                      width={960}
-                      height={540}
-                      unoptimized
-                      className="h-36 w-full rounded-lg object-cover"
-                    />
-                  </li>
-                ))}
+                            existingMediaUrls: nextMediaUrls,
+                          };
+                        });
 
-                {removedMedia ? (
-                  <li className="rounded-xl border border-ui-border bg-ui-bg p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm text-ui-text">Imagem removida da galeria.</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormState((prev) => {
-                            const nextMediaUrls = [...prev.existingMediaUrls];
-                            const insertIndex = Math.min(removedMedia.index, nextMediaUrls.length);
-                            nextMediaUrls.splice(insertIndex, 0, removedMedia.url);
-
-                            return {
-                              ...prev,
-                              existingMediaUrls: nextMediaUrls,
-                            };
-                          });
-
-                          setRemovedMedia(null);
-                        }}
-                        className="inline-flex items-center rounded-lg border border-ui-border bg-ui-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text"
-                      >
-                        Desfazer
-                      </button>
-                    </div>
-                    <Image
-                      src={removedMedia.url}
-                      alt="Imagem removida da galeria"
-                      width={960}
-                      height={540}
-                      unoptimized
-                      className="h-36 w-full rounded-lg object-cover opacity-70"
-                    />
-                  </li>
-                ) : null}
-              </ul>
+                        setRemovedMedia(null);
+                      }}
+                      className="inline-flex items-center rounded-lg border border-ui-border bg-ui-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ui-text"
+                    >
+                      Desfazer
+                    </button>
+                  </div>
+                  <Image
+                    src={removedMedia.url}
+                    alt="Imagem removida da galeria"
+                    width={960}
+                    height={540}
+                    unoptimized
+                    className="h-36 w-full rounded-lg object-cover opacity-70"
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 
