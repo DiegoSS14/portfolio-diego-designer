@@ -9,4 +9,6 @@ export interface Project {
   thumbnailUrl: string;
   mediaUrls: string[];
   tags: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }

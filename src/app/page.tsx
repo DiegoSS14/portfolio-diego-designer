@@ -1,5 +1,3 @@
-import { unstable_cache } from "next/cache";
-
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
 import { isFirebaseServiceError } from "@/modules/portfolio/infrastructure/adapters/firebase/isFirebaseServiceError";
 import { InMemoryProjectRepository } from "@/modules/portfolio/infrastructure/adapters/in-memory/InMemoryProjectRepository";
@@ -18,13 +16,23 @@ interface HomePageDataState {
   isMaintenanceMode: boolean;
 }
 
-const PROJECTS_CACHE_TAG = "projects";
-
 async function loadHomePageData(): Promise<HomePageDataState> {
-  const projectRepository = createProjectRepository();
-  const getPortfolioProjectsUseCase = new GetPortfolioProjectsUseCase(projectRepository);
+  try {
+    const adminRepository = createAdminProjectRepository();
+    const adminUseCase = new GetPortfolioProjectsUseCase(adminRepository);
+    const adminProjects = await adminUseCase.execute();
+
+    return {
+      projectCards: adminProjects.map(mapProjectToCardViewModel),
+      isMaintenanceMode: false,
+    };
+  } catch {
+    // Continue to public client repository when server credentials are unavailable.
+  }
 
   try {
+    const projectRepository = createProjectRepository();
+    const getPortfolioProjectsUseCase = new GetPortfolioProjectsUseCase(projectRepository);
     const projects = await getPortfolioProjectsUseCase.execute();
 
     return {
@@ -34,19 +42,6 @@ async function loadHomePageData(): Promise<HomePageDataState> {
   } catch (error) {
     if (!isFirebaseServiceError(error)) {
       throw error;
-    }
-
-    try {
-      const adminRepository = createAdminProjectRepository();
-      const adminUseCase = new GetPortfolioProjectsUseCase(adminRepository);
-      const adminProjects = await adminUseCase.execute();
-
-      return {
-        projectCards: adminProjects.map(mapProjectToCardViewModel),
-        isMaintenanceMode: false,
-      };
-    } catch {
-      // If both public and server reads fail, keep public portfolio online with local seed data.
     }
 
     const fallbackRepository = new InMemoryProjectRepository(seedProjects);
@@ -60,16 +55,8 @@ async function loadHomePageData(): Promise<HomePageDataState> {
   }
 }
 
-const loadHomePageDataFromCache = unstable_cache(
-  async () => loadHomePageData(),
-  ["home-page-data"],
-  {
-    tags: [PROJECTS_CACHE_TAG],
-  },
-);
-
 export default async function HomePage() {
-  const { projectCards, isMaintenanceMode } = await loadHomePageDataFromCache();
+  const { projectCards, isMaintenanceMode } = await loadHomePageData();
 
   if (isMaintenanceMode) {
     return (

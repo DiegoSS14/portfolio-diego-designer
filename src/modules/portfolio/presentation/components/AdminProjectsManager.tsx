@@ -102,6 +102,93 @@ function sanitizeFileName(fileName: string): string {
     .toLowerCase();
 }
 
+function generateUploadId(): string {
+  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${timestamp}-${random}`;
+}
+
+function replaceFileExtension(fileName: string, extension: string): string {
+  const dotIndex = fileName.lastIndexOf(".");
+
+  if (dotIndex <= 0) {
+    return `${fileName}.${extension}`;
+  }
+
+  return `${fileName.slice(0, dotIndex)}.${extension}`;
+}
+
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = document.createElement("img");
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Falha ao ler imagem para otimizacao."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function optimizeImageFile(
+  file: File,
+  options: {
+    maxWidth: number;
+    maxHeight: number;
+    quality: number;
+  },
+): Promise<File> {
+  if (!file.type.startsWith("image/") || typeof document === "undefined") {
+    return file;
+  }
+
+  try {
+    const image = await loadImage(file);
+    const scale = Math.min(1, options.maxWidth / image.width, options.maxHeight / image.height);
+    const targetWidth = Math.max(1, Math.round(image.width * scale));
+    const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+    const optimizedBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", options.quality);
+    });
+
+    if (!optimizedBlob || optimizedBlob.size >= file.size) {
+      return file;
+    }
+
+    const optimizedName = replaceFileExtension(file.name, "webp");
+    return new File([optimizedBlob], optimizedName, {
+      type: "image/webp",
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
+}
+
 export function AdminProjectsManager() {
   const authClient = useMemo(() => getFirebaseAuthClient(), []);
   const storageClient = useMemo(() => getFirebaseStorageClient(), []);
@@ -221,27 +308,37 @@ export function AdminProjectsManager() {
     baseMediaUrls: string[],
   ): Promise<{ thumbnailUrl: string; mediaUrls: string[] }> {
     const dateFolder = formatDateFolder();
+    const uploadBatchId = generateUploadId();
+    const uploadedGalleryUrls: string[] = [];
 
-    const uploadedGalleryUrls = await Promise.all(
-      formState.galleryFiles.map((file, index) => {
-        const safeName = sanitizeFileName(file.name);
-        const uniqueId = crypto.randomUUID();
+    for (const [index, galleryFile] of formState.galleryFiles.entries()) {
+      const optimizedGalleryFile = await optimizeImageFile(galleryFile, {
+        maxWidth: 2200,
+        maxHeight: 2200,
+        quality: 0.86,
+      });
+      const sequence = String(index + 1).padStart(4, "0");
+      const safeName = sanitizeFileName(optimizedGalleryFile.name);
+      const uploadedGalleryUrl = await uploadFile(
+        optimizedGalleryFile,
+        `projects/${projectScope}/gallery/${dateFolder}/img-${sequence}-${uploadBatchId}-${safeName}`,
+      );
 
-        return uploadFile(
-          file,
-          `projects/${projectScope}/gallery/${dateFolder}/img-${String(index + 1).padStart(2, "0")}-${uniqueId}-${safeName}`,
-        );
-      }),
-    );
+      uploadedGalleryUrls.push(uploadedGalleryUrl);
+    }
 
     let thumbnailUrl = baseThumbnailUrl;
 
     if (formState.thumbnailFile) {
-      const safeThumbnailName = sanitizeFileName(formState.thumbnailFile.name);
-      const uniqueId = crypto.randomUUID();
+      const optimizedThumbnailFile = await optimizeImageFile(formState.thumbnailFile, {
+        maxWidth: 1800,
+        maxHeight: 1800,
+        quality: 0.88,
+      });
+      const safeThumbnailName = sanitizeFileName(optimizedThumbnailFile.name);
       thumbnailUrl = await uploadFile(
-        formState.thumbnailFile,
-        `projects/${projectScope}/thumbnails/${dateFolder}/thumb-${uniqueId}-${safeThumbnailName}`,
+        optimizedThumbnailFile,
+        `projects/${projectScope}/thumbnails/${dateFolder}/thumb-${uploadBatchId}-${safeThumbnailName}`,
       );
     }
 

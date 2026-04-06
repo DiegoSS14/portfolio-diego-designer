@@ -5,8 +5,8 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
+  serverTimestamp,
   setDoc,
   where,
 } from "firebase/firestore";
@@ -19,6 +19,40 @@ import type {
 import { getFirestoreDatabase } from "./firebaseClient";
 
 const COLLECTION_NAME = "projects";
+
+function normalizeDateValue(value: unknown): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    const dateValue = value as { toDate?: () => Date };
+    if (typeof dateValue.toDate === "function") {
+      return dateValue.toDate().toISOString();
+    }
+  }
+
+  return undefined;
+}
+
+function getProjectRecencyTimestamp(project: Project): number {
+  const candidate = project.updatedAt ?? project.createdAt;
+
+  if (!candidate) {
+    return 0;
+  }
+
+  const parsed = Date.parse(candidate);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
 
 function mapProjectDocumentToDomain(data: Record<string, unknown>): Project {
   return {
@@ -34,6 +68,8 @@ function mapProjectDocumentToDomain(data: Record<string, unknown>): Project {
     tags: Array.isArray(data.tags)
       ? data.tags.map((tagItem) => String(tagItem))
       : [],
+    createdAt: normalizeDateValue(data.createdAt),
+    updatedAt: normalizeDateValue(data.updatedAt),
   };
 }
 
@@ -41,14 +77,16 @@ export class FirebaseProjectRepository implements ProjectRepository {
   async findAll(): Promise<Project[]> {
     const firestoreDatabase = getFirestoreDatabase();
     const projectsCollection = collection(firestoreDatabase, COLLECTION_NAME);
-    const orderedProjectsQuery = query(projectsCollection, orderBy("title", "asc"));
-    const projectSnapshots = await getDocs(orderedProjectsQuery);
-
-    return projectSnapshots.docs.map((projectDocument) =>
+    const projectSnapshots = await getDocs(projectsCollection);
+    const projects = projectSnapshots.docs.map((projectDocument) =>
       mapProjectDocumentToDomain({
         id: projectDocument.id,
         ...projectDocument.data(),
       }),
+    );
+
+    return projects.sort(
+      (left, right) => getProjectRecencyTimestamp(right) - getProjectRecencyTimestamp(left),
     );
   }
 
@@ -79,11 +117,25 @@ export class FirebaseProjectRepository implements ProjectRepository {
   async create(payload: ProjectUpsertPayload): Promise<Project> {
     const firestoreDatabase = getFirestoreDatabase();
     const projectsCollection = collection(firestoreDatabase, COLLECTION_NAME);
-    const createdDocument = await addDoc(projectsCollection, payload);
+    const createdDocument = await addDoc(projectsCollection, {
+      ...payload,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    const createdSnapshot = await getDoc(createdDocument);
+
+    if (createdSnapshot.exists()) {
+      return mapProjectDocumentToDomain({
+        id: createdSnapshot.id,
+        ...createdSnapshot.data(),
+      });
+    }
 
     return {
       id: createdDocument.id,
       ...payload,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   }
 
@@ -96,11 +148,29 @@ export class FirebaseProjectRepository implements ProjectRepository {
       return null;
     }
 
-    await setDoc(projectReference, payload, { merge: true });
+    await setDoc(
+      projectReference,
+      {
+        ...payload,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    const updatedSnapshot = await getDoc(projectReference);
+
+    if (updatedSnapshot.exists()) {
+      return mapProjectDocumentToDomain({
+        id: updatedSnapshot.id,
+        ...updatedSnapshot.data(),
+      });
+    }
 
     return {
       id: projectId,
       ...payload,
+      createdAt: normalizeDateValue(existingProjectSnapshot.data().createdAt),
+      updatedAt: new Date().toISOString(),
     };
   }
 

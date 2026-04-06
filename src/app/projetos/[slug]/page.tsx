@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
 
 import { GetProjectBySlugUseCase } from "@/modules/portfolio/application/use-cases/GetProjectBySlugUseCase";
@@ -15,8 +14,6 @@ interface ProjectDetailsPageProps {
   params: Promise<{ slug: string }>;
 }
 
-const PROJECTS_CACHE_TAG = "projects";
-
 type ProjectDetailsPageDataState =
   | {
       status: "ok";
@@ -30,10 +27,24 @@ type ProjectDetailsPageDataState =
     };
 
 async function loadProjectDetailsPageData(slug: string): Promise<ProjectDetailsPageDataState> {
-  const projectRepository = createProjectRepository();
-  const getProjectBySlugUseCase = new GetProjectBySlugUseCase(projectRepository);
+  try {
+    const adminRepository = createAdminProjectRepository();
+    const adminUseCase = new GetProjectBySlugUseCase(adminRepository);
+    const adminProject = await adminUseCase.execute(slug);
+
+    if (adminProject) {
+      return {
+        status: "ok",
+        projectDetails: mapProjectToDetailsViewModel(adminProject),
+      };
+    }
+  } catch {
+    // Continue to public client repository when server credentials are unavailable.
+  }
 
   try {
+    const projectRepository = createProjectRepository();
+    const getProjectBySlugUseCase = new GetProjectBySlugUseCase(projectRepository);
     const project = await getProjectBySlugUseCase.execute(slug);
 
     if (!project) {
@@ -79,17 +90,9 @@ async function loadProjectDetailsPageData(slug: string): Promise<ProjectDetailsP
   }
 }
 
-const loadProjectDetailsPageDataFromCache = unstable_cache(
-  async (slug: string) => loadProjectDetailsPageData(slug),
-  ["project-details-page-data"],
-  {
-    tags: [PROJECTS_CACHE_TAG],
-  },
-);
-
 export default async function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
   const { slug } = await params;
-  const dataState = await loadProjectDetailsPageDataFromCache(slug);
+  const dataState = await loadProjectDetailsPageData(slug);
 
   if (dataState.status === "not-found") {
     notFound();

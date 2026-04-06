@@ -4,11 +4,24 @@ import type {
   ProjectUpsertPayload,
 } from "../../../domain/repositories/ProjectRepository";
 
+function getProjectRecencyTimestamp(project: Project): number {
+  const candidate = project.updatedAt ?? project.createdAt;
+
+  if (!candidate) {
+    return 0;
+  }
+
+  const parsed = Date.parse(candidate);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export class InMemoryProjectRepository implements ProjectRepository {
   constructor(private readonly projects: Project[]) {}
 
   async findAll(): Promise<Project[]> {
-    return this.projects;
+    return [...this.projects].sort(
+      (left, right) => getProjectRecencyTimestamp(right) - getProjectRecencyTimestamp(left),
+    );
   }
 
   async findBySlug(slug: string): Promise<Project | null> {
@@ -17,10 +30,13 @@ export class InMemoryProjectRepository implements ProjectRepository {
   }
 
   async create(payload: ProjectUpsertPayload): Promise<Project> {
+    const nowIso = new Date().toISOString();
     const id = `${payload.slug}-${Date.now()}`;
     const project: Project = {
       id,
       ...payload,
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
     this.projects.unshift(project);
@@ -35,9 +51,12 @@ export class InMemoryProjectRepository implements ProjectRepository {
       return null;
     }
 
+    const currentProject = this.projects[index];
     const updatedProject: Project = {
       id: projectId,
       ...payload,
+      createdAt: currentProject.createdAt,
+      updatedAt: new Date().toISOString(),
     };
 
     this.projects[index] = updatedProject;
