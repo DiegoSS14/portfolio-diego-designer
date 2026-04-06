@@ -18,8 +18,8 @@ describe("SelectedUploadFilesList", () => {
       <SelectedUploadFilesList files={[firstFile, secondFile]} onRemove={onRemove} onMove={onMove} />,
     );
 
-    expect(screen.getByAltText("Preview de first-image.png")).toBeInTheDocument();
-    expect(screen.getByAltText("Preview de second-image.png")).toBeInTheDocument();
+    expect(screen.queryByAltText("Preview de first-image.png")).not.toBeNull();
+    expect(screen.queryByAltText("Preview de second-image.png")).not.toBeNull();
 
     const firstItem = screen.getByText("first-image.png").closest("li");
     const secondItem = screen.getByText("second-image.png").closest("li");

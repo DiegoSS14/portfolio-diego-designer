@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 
 const pushMock = jest.fn();
 const refreshMock = jest.fn();
@@ -13,7 +14,7 @@ jest.mock("next/image", () => ({
 
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ href, children, ...props }: Record<string, unknown>) => (
+  default: ({ href, children, ...props }: { href?: unknown; children?: ReactNode } & Record<string, unknown>) => (
     <a href={typeof href === "string" ? href : "#"} {...props}>
       {children}
     </a>
@@ -81,10 +82,10 @@ describe("ProjectDetailsSection", () => {
     );
 
     const editLink = await screen.findByRole("link", { name: /editar/i });
-    expect(editLink).toHaveAttribute("href", "/admin/projects?edit=project-1");
+    expect(editLink.getAttribute("href")).toBe("/admin/projects?edit=project-1");
 
     fireEvent.click(screen.getByRole("button", { name: /excluir/i }));
-    expect(screen.getByText(/confirmacao de exclusao/i)).toBeInTheDocument();
+    expect(screen.queryByText(/confirmacao de exclusao/i)).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /confirmar exclusao/i }));
 

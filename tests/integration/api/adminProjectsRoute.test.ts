@@ -2,23 +2,23 @@
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const requireAdminSessionMock = jest.fn();
-const revalidateTagMock = jest.fn();
+const requireAdminSessionMock = jest.fn<() => Promise<{ uid: string } | null>>();
+const revalidateTagMock = jest.fn<(tag: string, options: { expire: number }) => void>();
 
 const repositoryMock = {
-  findAll: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-  findBySlug: jest.fn(),
+  findAll: jest.fn<() => Promise<unknown[]>>(),
+  create: jest.fn<() => Promise<unknown>>(),
+  update: jest.fn<() => Promise<unknown>>(),
+  delete: jest.fn<() => Promise<boolean>>(),
+  findBySlug: jest.fn<() => Promise<unknown>>(),
 };
 
 jest.mock("next/cache", () => ({
-  revalidateTag: (...args: unknown[]) => revalidateTagMock(...args),
+  revalidateTag: revalidateTagMock,
 }));
 
 jest.mock("@/modules/auth/presentation/server/requireAdminSession", () => ({
-  requireAdminSession: (...args: unknown[]) => requireAdminSessionMock(...args),
+  requireAdminSession: requireAdminSessionMock,
 }));
 
 jest.mock("@/modules/portfolio/infrastructure/factories/createAdminProjectRepository", () => ({

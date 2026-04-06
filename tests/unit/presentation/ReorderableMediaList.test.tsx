@@ -19,8 +19,8 @@ describe("ReorderableMediaList", () => {
       />,
     );
 
-    expect(screen.getByAltText("Imagem atual 1")).toBeInTheDocument();
-    expect(screen.getByAltText("Imagem atual 2")).toBeInTheDocument();
+    expect(screen.queryByAltText("Imagem atual 1")).not.toBeNull();
+    expect(screen.queryByAltText("Imagem atual 2")).not.toBeNull();
 
     const firstItem = screen.getByAltText("Imagem atual 1").closest("li");
     const secondItem = screen.getByAltText("Imagem atual 2").closest("li");

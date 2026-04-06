@@ -2,9 +2,15 @@
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const getCurrentAdminSessionUseCaseMock = { execute: jest.fn() };
-const startAdminSessionUseCaseMock = { execute: jest.fn() };
-const endAdminSessionUseCaseMock = { execute: jest.fn() };
+const getCurrentAdminSessionUseCaseMock = {
+  execute: jest.fn<() => Promise<{ uid: string; email: string; isAdmin: boolean; expiresAt: string } | null>>(),
+};
+const startAdminSessionUseCaseMock = {
+  execute: jest.fn<() => Promise<{ uid: string; email: string; isAdmin: boolean; expiresAt: string }>>(),
+};
+const endAdminSessionUseCaseMock = {
+  execute: jest.fn<() => Promise<void>>(),
+};
 
 jest.mock("@/modules/auth/infrastructure/factories/createAuthDependencies", () => ({
   createAuthDependencies: () => ({
