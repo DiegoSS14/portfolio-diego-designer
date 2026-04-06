@@ -16,6 +16,7 @@ export function mapProjectToCardViewModel(project: Project): ProjectCardViewMode
 
 export function mapProjectToDetailsViewModel(project: Project): ProjectDetailsViewModel {
   return {
+    id: project.id,
     title: project.title,
     fullDescription: project.fullDescription,
     mediaUrls: project.mediaUrls,

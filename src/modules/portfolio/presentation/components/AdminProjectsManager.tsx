@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   IconArrowLeft,
   IconDeviceFloppy,
@@ -212,6 +212,7 @@ export function AdminProjectsManager() {
   const authClient = useMemo(() => getFirebaseAuthClient(), []);
   const storageClient = useMemo(() => getFirebaseStorageClient(), []);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -257,6 +258,23 @@ export function AdminProjectsManager() {
         setIsLoading(false);
       });
   }, [loadProjects]);
+
+  useEffect(() => {
+    const editProjectId = searchParams.get("edit");
+
+    if (!editProjectId || isLoading || isFormVisible) {
+      return;
+    }
+
+    const targetProject = projects.find((project) => project.id === editProjectId);
+
+    if (!targetProject) {
+      return;
+    }
+
+    openEditForm(targetProject);
+    router.replace("/admin/projects");
+  }, [isFormVisible, isLoading, projects, router, searchParams]);
 
   function openCreateForm() {
     setFormState(emptyFormState);

@@ -7,6 +7,7 @@ export interface ProjectCardViewModel {
 }
 
 export interface ProjectDetailsViewModel {
+  id: string;
   title: string;
   fullDescription: string;
   mediaUrls: string[];
