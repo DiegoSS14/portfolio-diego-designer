@@ -12,6 +12,17 @@ import {
 const COLLECTION_NAME = "projects";
 const FIREBASE_STORAGE_DOWNLOAD_HOST = "firebasestorage.googleapis.com";
 
+function readStorageBucketName(): string | null {
+  const bucketName =
+    process.env.FIREBASE_ADMIN_STORAGE_BUCKET ?? process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+
+  if (!bucketName) {
+    return null;
+  }
+
+  return bucketName;
+}
+
 function normalizeDateValue(value: unknown): string | undefined {
   if (!value) {
     return undefined;
@@ -77,7 +88,13 @@ async function deleteProjectStorageUrl(url: string): Promise<void> {
     return;
   }
 
-  const storageBucket = getFirebaseAdminStorageClient().bucket();
+  const bucketName = readStorageBucketName();
+
+  if (!bucketName) {
+    return;
+  }
+
+  const storageBucket = getFirebaseAdminStorageClient().bucket(bucketName);
   await storageBucket.file(storagePath).delete({ ignoreNotFound: true });
 }
 
@@ -210,7 +227,12 @@ export class FirebaseAdminProjectRepository implements ProjectRepository {
       return false;
     }
 
-    await deleteProjectStorageAssets(mapProjectDocumentToDomain(projectId, snapshot.data()));
+    try {
+      await deleteProjectStorageAssets(mapProjectDocumentToDomain(projectId, snapshot.data()));
+    } catch (error) {
+      console.error("Failed to remove Firebase Storage assets during project deletion.", error);
+    }
+
     await reference.delete();
 
     return true;

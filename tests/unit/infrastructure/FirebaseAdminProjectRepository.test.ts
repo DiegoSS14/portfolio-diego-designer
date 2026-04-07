@@ -23,10 +23,12 @@ describe("FirebaseAdminProjectRepository", () => {
 
     ({ FirebaseAdminProjectRepository } = require("@/modules/portfolio/infrastructure/adapters/firebase-admin/FirebaseAdminProjectRepository"));
 
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "example-bucket.appspot.com";
     jest.clearAllMocks();
   });
 
   afterEach(() => {
+    delete process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
     jest.clearAllMocks();
   });
 
@@ -71,5 +73,53 @@ describe("FirebaseAdminProjectRepository", () => {
     expect(removed).toBe(false);
     expect(mockDelete).not.toHaveBeenCalled();
     expect(mockFirestoreDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes the project document even when storage cleanup fails", async () => {
+    mockFirestoreGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        thumbnailUrl:
+          "https://firebasestorage.googleapis.com/v0/b/example-bucket/o/projects%2Fproject-1%2Fthumbnails%2F2026-04-06%2Fthumb-1-cover.webp?alt=media&token=token",
+        mediaUrls: [],
+        slug: "project-1",
+        title: "Project 1",
+        shortDescription: "Short",
+        fullDescription: "Full",
+        tags: [],
+      }),
+    });
+    mockDelete.mockRejectedValueOnce(new Error("missing bucket"));
+
+    const repository = new FirebaseAdminProjectRepository();
+    const removed = await repository.delete("project-1");
+
+    expect(removed).toBe(true);
+    expect(mockFirestoreDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips storage cleanup when bucket configuration is unavailable", async () => {
+    delete process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    mockFirestoreGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        thumbnailUrl:
+          "https://firebasestorage.googleapis.com/v0/b/example-bucket/o/projects%2Fproject-1%2Fthumbnails%2F2026-04-06%2Fthumb-1-cover.webp?alt=media&token=token",
+        mediaUrls: [],
+        slug: "project-1",
+        title: "Project 1",
+        shortDescription: "Short",
+        fullDescription: "Full",
+        tags: [],
+      }),
+    });
+
+    const repository = new FirebaseAdminProjectRepository();
+    const removed = await repository.delete("project-1");
+
+    expect(removed).toBe(true);
+    expect(mockBucket).not.toHaveBeenCalled();
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockFirestoreDelete).toHaveBeenCalledTimes(1);
   });
 });
