@@ -4,9 +4,13 @@ import type {
   ProjectUpsertPayload,
 } from "../../../domain/repositories/ProjectRepository";
 import { FieldValue } from "firebase-admin/firestore";
-import { getFirebaseAdminFirestoreClient } from "@/modules/shared/infrastructure/adapters/firebase-admin/firebaseAdminClient";
+import {
+  getFirebaseAdminFirestoreClient,
+  getFirebaseAdminStorageClient,
+} from "@/modules/shared/infrastructure/adapters/firebase-admin/firebaseAdminClient";
 
 const COLLECTION_NAME = "projects";
+const FIREBASE_STORAGE_DOWNLOAD_HOST = "firebasestorage.googleapis.com";
 
 function normalizeDateValue(value: unknown): string | undefined {
   if (!value) {
@@ -40,6 +44,59 @@ function getProjectRecencyTimestamp(project: Project): number {
 
   const parsed = Date.parse(candidate);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function extractStoragePathFromUrl(url: string): string | null {
+  if (!url) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.hostname !== FIREBASE_STORAGE_DOWNLOAD_HOST) {
+      return null;
+    }
+
+    const pathMatch = parsedUrl.pathname.match(/^\/v0\/b\/[^/]+\/o\/(.+)$/);
+
+    if (!pathMatch) {
+      return null;
+    }
+
+    return decodeURIComponent(pathMatch[1]);
+  } catch {
+    return null;
+  }
+}
+
+async function deleteProjectStorageUrl(url: string): Promise<void> {
+  const storagePath = extractStoragePathFromUrl(url);
+
+  if (!storagePath) {
+    return;
+  }
+
+  const storageBucket = getFirebaseAdminStorageClient().bucket();
+  await storageBucket.file(storagePath).delete({ ignoreNotFound: true });
+}
+
+async function deleteProjectStorageAssets(project: Project): Promise<void> {
+  const storageUrls = new Set<string>();
+
+  if (project.thumbnailUrl) {
+    storageUrls.add(project.thumbnailUrl);
+  }
+
+  for (const mediaUrl of project.mediaUrls) {
+    if (mediaUrl) {
+      storageUrls.add(mediaUrl);
+    }
+  }
+
+  for (const storageUrl of storageUrls) {
+    await deleteProjectStorageUrl(storageUrl);
+  }
 }
 
 function mapProjectDocumentToDomain(
@@ -153,6 +210,7 @@ export class FirebaseAdminProjectRepository implements ProjectRepository {
       return false;
     }
 
+    await deleteProjectStorageAssets(mapProjectDocumentToDomain(projectId, snapshot.data()));
     await reference.delete();
 
     return true;

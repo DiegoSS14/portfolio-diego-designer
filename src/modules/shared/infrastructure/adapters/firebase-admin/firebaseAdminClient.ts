@@ -3,6 +3,7 @@ import "server-only";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 function readFirebaseAdminCredential() {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
@@ -38,4 +39,8 @@ export function getFirebaseAdminAuthClient() {
 
 export function getFirebaseAdminFirestoreClient() {
   return getFirestore(getFirebaseAdminApp());
+}
+
+export function getFirebaseAdminStorageClient() {
+  return getStorage(getFirebaseAdminApp());
 }
