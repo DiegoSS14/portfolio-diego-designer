@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { DeleteProjectUseCase } from "@/modules/portfolio/application/use-cases/DeleteProjectUseCase";
 import { UpdateProjectUseCase } from "@/modules/portfolio/application/use-cases/UpdateProjectUseCase";
@@ -11,6 +11,12 @@ import { requireAdminSession } from "@/modules/auth/presentation/server/requireA
 
 export const runtime = "nodejs";
 const PROJECTS_CACHE_TAG = "projects";
+
+function invalidatePath(path: string) {
+  if (typeof revalidatePath === "function") {
+    revalidatePath(path);
+  }
+}
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -36,6 +42,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       return Response.json({ error: "Project not found." }, { status: 404 });
     }
 
+    invalidatePath("/");
+    invalidatePath(`/projetos/${updatedProject.slug}`);
     revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
 
     return Response.json({ project: updatedProject });
@@ -60,6 +68,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return Response.json({ error: "Project not found." }, { status: 404 });
   }
 
+  invalidatePath("/");
   revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
 
   return Response.json({ removed: true });

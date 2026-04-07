@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { CreateProjectUseCase } from "@/modules/portfolio/application/use-cases/CreateProjectUseCase";
 import { GetPortfolioProjectsUseCase } from "@/modules/portfolio/application/use-cases/GetPortfolioProjectsUseCase";
@@ -11,6 +11,12 @@ import { requireAdminSession } from "@/modules/auth/presentation/server/requireA
 
 export const runtime = "nodejs";
 const PROJECTS_CACHE_TAG = "projects";
+
+function invalidatePath(path: string) {
+  if (typeof revalidatePath === "function") {
+    revalidatePath(path);
+  }
+}
 
 export async function GET() {
   const adminSession = await requireAdminSession();
@@ -40,6 +46,8 @@ export async function POST(request: Request) {
     const repository = createAdminProjectRepository();
     const createProjectUseCase = new CreateProjectUseCase(repository);
     const createdProject = await createProjectUseCase.execute(payload);
+    invalidatePath("/");
+    invalidatePath(`/projetos/${createdProject.slug}`);
     revalidateTag(PROJECTS_CACHE_TAG, { expire: 0 });
 
     return Response.json({ project: createdProject }, { status: 201 });
